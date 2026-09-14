@@ -93,8 +93,12 @@ SQLite: `plant_checks` (health score, condition, green/stressed %, recommendatio
 
 ## Security considerations
 
-Upload size/type validated server-side, CORS restricted, no secrets in source. No admin
-auth in this MVP.
+- **API key required on every endpoint except `/api/health`.** Set `API_KEY` (backend
+  `.env`) and `VITE_API_KEY` (frontend `.env`) to the same value before deploying anywhere
+  reachable outside your own machine — the default (`dev-local-key-change-me`) is for
+  local development only. Single-tenant "licensed instance" model, not per-user accounts.
+- Rate limiting (30 req/60s/IP) on the API.
+- Upload size/type validated server-side, CORS restricted, no secrets in source.
 
 ## Privacy considerations
 
