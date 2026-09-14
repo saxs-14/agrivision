@@ -1,5 +1,5 @@
-const API_BASE = "";
-const API_KEY = (import.meta.env.VITE_API_KEY as string) || "dev-local-key-change-me";
+const API_BASE = (import.meta.env.VITE_API_BASE as string) || "https://agrivision-607032555709.us-central1.run.app";
+const API_KEY = (import.meta.env.VITE_API_KEY as string) || "8f82c77e976877597287fd5c8af666c12af0985fb43792d9";
 
 export interface PlantCheck {
   id: number;
