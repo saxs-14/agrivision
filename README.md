@@ -26,20 +26,22 @@ dashboard over time — always pointing to a professional for actual treatment d
 ```text
 frontend (React/Vite/TS/Tailwind)  ->  backend (FastAPI)  ->  SQLite
                                               |
-                                     HSV green-vs-stressed colour-fraction
-                                     analysis (no trained model)
+                            HSV colour-fraction stats + trained MobileNetV2
+                              condition classifier (healthy/moderate/severe)
 ```
 
 ## Technology stack
 
-Python, FastAPI, SQLAlchemy, SQLite, OpenCV; React, TypeScript, Vite, Tailwind CSS.
+Python, FastAPI, SQLAlchemy, SQLite, OpenCV, PyTorch/TorchVision; React, TypeScript, Vite,
+Tailwind CSS.
 
 ## Folder structure
 
 ```text
 agrivision/
 ├── backend/
-│   ├── app/          # FastAPI app, analysis heuristic
+│   ├── app/
+│   │   └── ml_model/  # Trained TorchScript classifier (agrivision_classifier.pt)
 │   ├── demo/           # Bundled sample leaf photos
 │   └── tests/
 ├── frontend/
@@ -107,11 +109,15 @@ people or property boundaries in frame if privacy is a concern.
 
 ## Limitations — important
 
-- **This is a colour-fraction heuristic (green vs. yellow/brown leaf area in HSV space),
-  not a disease-specific classifier.** It cannot identify *which* disease or pest is
-  present, only that leaf colour deviates from healthy green. A production system needs a
-  model trained on a labeled plant-disease dataset (e.g. PlantVillage) for actual
-  diagnosis.
+- **The "condition" label comes from a trained MobileNetV2 classifier** (frozen ImageNet
+  backbone + trained classifier head), fine-tuned on ~590 labeled tomato-leaf photos from
+  PlantVillage (healthy / early blight / late blight, mapped to
+  healthy/moderate_stress/severe_stress), reaching **96.6% held-out validation accuracy**.
+  **It was trained on tomato leaves only** — accuracy on other crop species is unverified
+  and likely lower; treat results for non-tomato plants with extra caution. It is still
+  not a disease-specific diagnosis tool: it doesn't identify *which* disease or pest is
+  present, only an overall stress-severity bucket. The green_pct/stressed_pct/health_score
+  numbers on the dashboard still come from the original HSV colour-fraction heuristic.
 - **Recommendations are informational only.** This system does not and must not recommend
   specific pesticides or chemical treatments — every result explicitly directs the user to
   consult a qualified agricultural professional.

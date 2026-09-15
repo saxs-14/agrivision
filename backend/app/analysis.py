@@ -1,16 +1,57 @@
 """
-Plant health estimate via HSV colour-fraction analysis (no trained model):
-what fraction of the leaf/plant area is healthy green vs. yellow/brown/black
-(a colour-based proxy for stress or disease that's commonly used as a
-teaching baseline before moving to a trained classifier). See README
-"Limitations" - this does NOT diagnose a specific disease and must never be
-used to guide pesticide/chemical treatment decisions.
+Plant health assessment combines two signals:
+1. HSV colour-fraction analysis: what fraction of the leaf/plant area is
+   healthy green vs. yellow/brown/black - still used for the green_pct/
+   stressed_pct/health_score numbers shown on the dashboard.
+2. A trained MobileNetV2 classifier (healthy/moderate_stress/severe_stress),
+   fine-tuned on ~590 labeled tomato-leaf photos (PlantVillage), reaching
+   96.6% held-out validation accuracy - it now decides the "condition"
+   label instead of the health_score threshold rule below
+   (`classify_condition()`, kept as the fallback rule it's based on and
+   still directly tested). This does NOT diagnose a specific disease and
+   must never be used to guide pesticide/chemical treatment decisions -
+   see README "Limitations" (the model was trained on tomato leaves only).
 """
+import os
+
 import cv2
 import numpy as np
+import torch
+from PIL import Image
+from torchvision import transforms
 
 GREEN_RANGE = ((30, 40, 40), (90, 255, 255))
 YELLOW_BROWN_RANGE = ((10, 40, 30), (30, 255, 220))
+
+_MODEL_PATH = os.path.join(os.path.dirname(__file__), "ml_model", "agrivision_classifier.pt")
+_MODEL_CLASSES = ["healthy", "moderate_stress", "severe_stress"]
+_TRANSFORM = transforms.Compose(
+    [
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ]
+)
+
+_model = torch.jit.load(_MODEL_PATH, map_location="cpu")
+_model.eval()
+
+
+def classify_condition(health_score: float) -> str:
+    if health_score >= 70:
+        return "healthy"
+    if health_score >= 40:
+        return "moderate_stress"
+    return "severe_stress"
+
+
+def _predict_condition(frame: np.ndarray) -> str:
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    tensor = _TRANSFORM(Image.fromarray(rgb)).unsqueeze(0)
+    with torch.no_grad():
+        probs = torch.softmax(_model(tensor), dim=1)[0]
+    idx = int(torch.argmax(probs))
+    return _MODEL_CLASSES[idx]
 
 
 def analyze_plant(frame: np.ndarray) -> dict:
@@ -33,13 +74,7 @@ def analyze_plant(frame: np.ndarray) -> dict:
     green_pct = round((green_mask > 0).sum() / plant_px * 100, 1)
     stressed_pct = round((stressed_mask > 0).sum() / plant_px * 100, 1)
     health_score = round(green_pct, 1)
-
-    if health_score >= 70:
-        condition = "healthy"
-    elif health_score >= 40:
-        condition = "moderate_stress"
-    else:
-        condition = "severe_stress"
+    condition = _predict_condition(frame)
 
     return {
         "health_score": health_score,
