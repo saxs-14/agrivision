@@ -8,9 +8,13 @@ Plant health assessment combines two signals:
    96.6% held-out validation accuracy - it now decides the "condition"
    label instead of the health_score threshold rule below
    (`classify_condition()`, kept as the fallback rule it's based on and
-   still directly tested). This does NOT diagnose a specific disease and
-   must never be used to guide pesticide/chemical treatment decisions -
-   see README "Limitations" (the model was trained on tomato leaves only).
+   still directly tested), EXCEPT when green_pct >= 95 (see the guardrail
+   comment in analyze_plant) - real-world/stock photos outside PlantVillage's
+   domain (isolated leaf, plain background) can otherwise get misjudged as
+   badly as calling a near-entirely-green photo "severe_stress". This does
+   NOT diagnose a specific disease and must never be used to guide
+   pesticide/chemical treatment decisions - see README "Limitations" (the
+   model was trained on tomato leaves only).
 """
 import os
 
@@ -74,7 +78,18 @@ def analyze_plant(frame: np.ndarray) -> dict:
     green_pct = round((green_mask > 0).sum() / plant_px * 100, 1)
     stressed_pct = round((stressed_mask > 0).sum() / plant_px * 100, 1)
     health_score = round(green_pct, 1)
-    condition = _predict_condition(frame)
+
+    # Guardrail: the model was trained only on PlantVillage's isolated, plain-background
+    # tomato-leaf photos, and misjudges real-world/stock photos it wasn't trained on badly
+    # enough to call a near-entirely-green leaf "severe_stress" (observed on live demo
+    # images - see README "Limitations"). Severe stress necessarily reduces green
+    # coverage in the model's own training data, so an extremely high green fraction
+    # overriding the model here is a narrow, principled sanity bound, not a rejection of
+    # the model - ambiguous/mid-range cases still go entirely to the trained model below.
+    if green_pct >= 95:
+        condition = "healthy"
+    else:
+        condition = _predict_condition(frame)
 
     return {
         "health_score": health_score,

@@ -118,6 +118,16 @@ people or property boundaries in frame if privacy is a concern.
   not a disease-specific diagnosis tool: it doesn't identify *which* disease or pest is
   present, only an overall stress-severity bucket. The green_pct/stressed_pct/health_score
   numbers on the dashboard still come from the original HSV colour-fraction heuristic.
+- **Domain shift is real and was caught by testing against this project's own demo
+  photos, not just the held-out validation set.** PlantVillage photos are isolated leaves
+  against a plain background — a controlled lab-photography style. Tested against this
+  app's bundled demo photos (different framing/background/lighting), the model
+  misclassified a 99.5%-green healthy-leaf photo as "severe_stress". A guardrail in
+  `analyze_plant()` now forces "healthy" whenever green_pct ≥ 95%, since real severe
+  stress necessarily reduces green coverage in the model's own training data — but this
+  is a narrow patch for the most extreme failure case, not a fix for domain shift in
+  general. Expect degraded real-world accuracy versus the 96.6% validation number,
+  especially on photos that don't resemble PlantVillage's framing.
 - **Recommendations are informational only.** This system does not and must not recommend
   specific pesticides or chemical treatments — every result explicitly directs the user to
   consult a qualified agricultural professional.
