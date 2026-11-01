@@ -1,3 +1,5 @@
+<p align="center"><img src=".github/assets/banner.svg" width="100%" alt="AgriVision banner"/></p>
+
 # AgriVision
 
 AI-assisted crop/plant health monitoring MVP.
